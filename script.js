@@ -34,25 +34,39 @@ class FamilyCalendar {
             this.saveEventsToLocal();
         });
         
-        // デバッグ用：5秒後にテストイベントを追加
+        // デバッグ用：3秒後にテストイベントを追加
+        console.log('テストイベント追加タイマー開始');
         setTimeout(() => {
-            if (this.events.length === 0) {
-                const testEvent = {
-                    id: this.generateId(),
-                    title: 'テストイベント',
-                    date: this.formatDate(new Date()),
-                    time: '10:00',
-                    description: 'これはテスト用のイベントです',
-                    member: 'けんじ',
-                    createdAt: new Date().toISOString()
-                };
-                console.log('テストイベント追加:', testEvent);
-                this.events.push(testEvent);
-                this.saveEventsToLocal();
-                this.renderCalendar();
-                this.showToast('テストイベントを追加しました');
-            }
-        }, 5000);
+            console.log('テストイベント追加タイマー実行');
+            console.log('現在のイベント数:', this.events.length);
+            
+            const testEvent = {
+                id: this.generateId(),
+                title: 'テストイベント',
+                date: this.formatDate(new Date()),
+                time: '10:00',
+                description: 'これはテスト用のイベントです',
+                member: 'けんじ',
+                createdAt: new Date().toISOString()
+            };
+            
+            console.log('作成したテストイベント:', testEvent);
+            this.events.push(testEvent);
+            console.log('テストイベント追加後のevents配列:', this.events);
+            
+            this.saveEventsToLocal();
+            this.renderCalendar();
+            this.showToast('テストイベントを追加しました！');
+        }, 3000);
+        
+        // さらにデバッグ用：ページロード後すぐに状況をログ出力
+        setTimeout(() => {
+            console.log('=== 初期化完了後のデバッグ情報 ===');
+            console.log('this.events:', this.events);
+            console.log('LocalStorage内容:', localStorage.getItem('familyCalendarEvents'));
+            console.log('カレンダーグリッド要素:', this.calendarGrid);
+            console.log('今日の日付:', this.formatDate(new Date()));
+        }, 1000);
     }
     
     initializeFirebase() {
@@ -167,6 +181,7 @@ class FamilyCalendar {
         this.connectionStatus = document.getElementById('connectionStatus');
         this.statusIndicator = document.getElementById('statusIndicator');
         this.statusText = document.getElementById('statusText');
+        this.debugBtn = document.getElementById('debugBtn');
     }
     
     bindEvents() {
@@ -179,6 +194,7 @@ class FamilyCalendar {
         this.addEventFab.addEventListener('click', () => this.showEventForm());
         this.editEventBtn.addEventListener('click', () => this.editCurrentEvent());
         this.closeDetailBtn.addEventListener('click', () => this.hideEventDetails());
+        this.debugBtn.addEventListener('click', () => this.addTestEvent());
         
         // タッチイベントの最適化
         this.addTouchSupport();
@@ -534,6 +550,31 @@ class FamilyCalendar {
         }
     }
     
+    addTestEvent() {
+        console.log('=== 手動テストイベント追加開始 ===');
+        const testEvent = {
+            id: this.generateId(),
+            title: `テスト${Date.now()}`,
+            date: this.formatDate(new Date()),
+            time: '14:30',
+            description: '手動で追加したテストイベントです',
+            member: 'あい',
+            createdAt: new Date().toISOString()
+        };
+        
+        console.log('手動テストイベント:', testEvent);
+        this.events.push(testEvent);
+        console.log('追加後のevents:', this.events);
+        
+        this.saveEventsToLocal();
+        console.log('LocalStorage保存完了');
+        
+        this.renderCalendar();
+        console.log('カレンダー再描画完了');
+        
+        this.showToast(`テストイベント追加: ${testEvent.title}`);
+    }
+
     showToast(message) {
         const toast = document.createElement('div');
         toast.style.cssText = `

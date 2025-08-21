@@ -41,6 +41,28 @@ body {
     margin-bottom: 15px;
 }
 
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.debug-btn {
+    background: #f56565;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.debug-btn:active {
+    background: #e53e3e;
+    transform: scale(0.95);
+}
+
 h1 {
     font-size: 1.4rem;
     color: #4a5568;
