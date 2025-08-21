@@ -33,6 +33,26 @@ class FamilyCalendar {
         window.addEventListener('beforeunload', () => {
             this.saveEventsToLocal();
         });
+        
+        // デバッグ用：5秒後にテストイベントを追加
+        setTimeout(() => {
+            if (this.events.length === 0) {
+                const testEvent = {
+                    id: this.generateId(),
+                    title: 'テストイベント',
+                    date: this.formatDate(new Date()),
+                    time: '10:00',
+                    description: 'これはテスト用のイベントです',
+                    member: 'けんじ',
+                    createdAt: new Date().toISOString()
+                };
+                console.log('テストイベント追加:', testEvent);
+                this.events.push(testEvent);
+                this.saveEventsToLocal();
+                this.renderCalendar();
+                this.showToast('テストイベントを追加しました');
+            }
+        }, 5000);
     }
     
     initializeFirebase() {
@@ -215,6 +235,9 @@ class FamilyCalendar {
     }
     
     saveEvent(eventData) {
+        console.log('saveEvent開始:', eventData);
+        console.log('現在のevents配列:', this.events);
+        
         if (this.db && this.isOnline) {
             this.db.ref('events/' + eventData.id).set(eventData);
         } else {
@@ -223,13 +246,17 @@ class FamilyCalendar {
                 const index = this.events.findIndex(e => e.id === this.editingEventId);
                 if (index !== -1) {
                     this.events[index] = eventData;
+                    console.log('イベント更新:', index, eventData);
                 }
             } else {
                 this.events.push(eventData);
+                console.log('新しいイベント追加:', eventData);
+                console.log('追加後のevents配列:', this.events);
             }
         }
         // 常にローカルにも保存（Firebase使用時も）
         this.saveEventsToLocal();
+        console.log('カレンダー再描画実行');
         this.renderCalendar();
     }
     
@@ -277,6 +304,10 @@ class FamilyCalendar {
     }
     
     renderCalendar() {
+        console.log('カレンダーレンダリング開始');
+        console.log('現在のイベント数:', this.events.length);
+        console.log('現在のイベント:', this.events);
+        
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
         
@@ -350,8 +381,8 @@ class FamilyCalendar {
         dayElement.appendChild(eventsContainer);
         
         // タッチイベントの追加
-        dayElement.addEventListener('click', () => {
-            this.selectDate(date);
+        dayElement.addEventListener('click', (e) => {
+            this.selectDate(date, e.currentTarget);
             this.addHapticFeedback();
         });
         
@@ -360,7 +391,11 @@ class FamilyCalendar {
     
     getEventsForDate(date) {
         const dateString = this.formatDate(date);
-        return this.events.filter(event => event.date === dateString);
+        const eventsForDate = this.events.filter(event => event.date === dateString);
+        if (eventsForDate.length > 0) {
+            console.log(`${dateString}のイベント:`, eventsForDate);
+        }
+        return eventsForDate;
     }
     
     formatDate(date) {
@@ -370,13 +405,17 @@ class FamilyCalendar {
         return `${year}-${month}-${day}`;
     }
     
-    selectDate(date) {
+    selectDate(date, dayElement) {
+        console.log('日付選択:', date, this.formatDate(date));
+        
         document.querySelectorAll('.calendar-day.selected').forEach(el => {
             el.classList.remove('selected');
         });
         
         this.selectedDate = date;
-        event.currentTarget.classList.add('selected');
+        if (dayElement) {
+            dayElement.classList.add('selected');
+        }
         this.showEventForm();
         this.eventDate.value = this.formatDate(date);
     }
@@ -476,6 +515,9 @@ class FamilyCalendar {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
+        
+        console.log('フォーム送信:', eventData);
+        console.log('編集中のイベントID:', this.editingEventId);
         
         this.saveEvent(eventData);
         this.hideEventForm();
