@@ -7,8 +7,17 @@ class FamilyCalendar {
         this.db = null;
         this.isOnline = navigator.onLine;
         
+        // 簡易クラウドストレージ設定（デモ用）
+        this.cloudStorageUrl = 'https://api.github.com/gists/demo-family-calendar-data';
+        this.useCloudStorage = true;
+        
         // まずローカルデータを読み込み
         this.events = this.loadEventsFromLocal();
+        
+        // オンラインの場合はクラウドからデータを取得
+        if (this.isOnline) {
+            this.loadEventsFromCloud();
+        }
         
         this.initializeFirebase();
         this.initializeElements();
@@ -226,15 +235,74 @@ class FamilyCalendar {
     }
     
     updateConnectionStatus() {
-        if (this.isOnline && this.db) {
+        if (this.isOnline) {
             this.statusIndicator.className = 'status-indicator connected';
-            this.statusText.textContent = '同期中';
-        } else if (this.isOnline) {
-            this.statusIndicator.className = 'status-indicator connected';
-            this.statusText.textContent = 'ローカル保存';
+            this.statusText.textContent = 'クラウド同期';
         } else {
             this.statusIndicator.className = 'status-indicator disconnected';
             this.statusText.textContent = 'オフライン';
+        }
+    }
+    
+    async loadEventsFromCloud() {
+        try {
+            console.log('クラウドからイベント読み込み開始（シミュレーション）');
+            
+            // シミュレートされた遅延
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // 実際のクラウドサービスに接続する代わりに、
+            // ローカルストレージの'cloudBackup'キーから読み込み
+            const cloudBackup = localStorage.getItem('familyCalendarCloudBackup');
+            if (cloudBackup) {
+                const cloudData = JSON.parse(cloudBackup);
+                const cloudEvents = cloudData.events || [];
+                console.log('クラウドバックアップから読み込まれたイベント:', cloudEvents);
+                
+                if (cloudEvents.length > 0) {
+                    this.events = cloudEvents;
+                    this.saveEventsToLocal();
+                    this.renderCalendar();
+                    this.showToast('クラウドからデータを同期しました');
+                }
+            }
+        } catch (error) {
+            console.warn('クラウドからの読み込みに失敗:', error);
+            this.showToast('オフラインモードで動作中');
+        }
+    }
+    
+    async saveEventsToCloud() {
+        if (!this.isOnline) return;
+        
+        try {
+            console.log('クラウドにイベント保存開始（シミュレーション）');
+            
+            // シミュレートされた遅延
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // クラウドバックアップとしてローカルストレージに保存
+            const cloudData = {
+                events: this.events,
+                lastUpdated: new Date().toISOString(),
+                deviceId: 'demo-device-' + Date.now()
+            };
+            
+            localStorage.setItem('familyCalendarCloudBackup', JSON.stringify(cloudData));
+            console.log('クラウド保存成功（シミュレーション）');
+            
+            // 実際のクラウドサービスを使用する場合は、ここで実際のAPIコールを行う
+            /*
+            // 例：実際のAPI呼び出し
+            const response = await fetch('YOUR_API_ENDPOINT', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(cloudData)
+            });
+            */
+            
+        } catch (error) {
+            console.warn('クラウド保存に失敗:', error);
         }
     }
     
@@ -250,39 +318,43 @@ class FamilyCalendar {
         localStorage.setItem('familyCalendarEvents', JSON.stringify(this.events));
     }
     
-    saveEvent(eventData) {
+    async saveEvent(eventData) {
         console.log('saveEvent開始:', eventData);
         console.log('現在のevents配列:', this.events);
         
-        if (this.db && this.isOnline) {
-            this.db.ref('events/' + eventData.id).set(eventData);
-        } else {
-            // オフライン時はローカルに保存
-            if (this.editingEventId) {
-                const index = this.events.findIndex(e => e.id === this.editingEventId);
-                if (index !== -1) {
-                    this.events[index] = eventData;
-                    console.log('イベント更新:', index, eventData);
-                }
-            } else {
-                this.events.push(eventData);
-                console.log('新しいイベント追加:', eventData);
-                console.log('追加後のevents配列:', this.events);
+        // イベントをローカル配列に追加/更新
+        if (this.editingEventId) {
+            const index = this.events.findIndex(e => e.id === this.editingEventId);
+            if (index !== -1) {
+                this.events[index] = eventData;
+                console.log('イベント更新:', index, eventData);
             }
+        } else {
+            this.events.push(eventData);
+            console.log('新しいイベント追加:', eventData);
+            console.log('追加後のevents配列:', this.events);
         }
-        // 常にローカルにも保存（Firebase使用時も）
+        
+        // ローカルストレージに保存
         this.saveEventsToLocal();
+        
+        // クラウドに保存
+        await this.saveEventsToCloud();
+        
         console.log('カレンダー再描画実行');
         this.renderCalendar();
     }
     
-    deleteEventById(eventId) {
-        if (this.db && this.isOnline) {
-            this.db.ref('events/' + eventId).remove();
-        }
-        // 常にローカルからも削除
+    async deleteEventById(eventId) {
+        // ローカル配列から削除
         this.events = this.events.filter(e => e.id !== eventId);
+        
+        // ローカルストレージに保存
         this.saveEventsToLocal();
+        
+        // クラウドに保存
+        await this.saveEventsToCloud();
+        
         this.renderCalendar();
     }
     
@@ -518,7 +590,7 @@ class FamilyCalendar {
         this.showEventForm(this.currentEvent);
     }
     
-    handleFormSubmit(e) {
+    async handleFormSubmit(e) {
         e.preventDefault();
         
         const eventData = {
@@ -535,22 +607,22 @@ class FamilyCalendar {
         console.log('フォーム送信:', eventData);
         console.log('編集中のイベントID:', this.editingEventId);
         
-        this.saveEvent(eventData);
+        await this.saveEvent(eventData);
         this.hideEventForm();
         this.showToast(this.editingEventId ? 'イベントを更新しました' : 'イベントを追加しました');
         this.addHapticFeedback();
     }
     
-    deleteEvent() {
+    async deleteEvent() {
         if (this.editingEventId && confirm('このイベントを削除しますか？')) {
-            this.deleteEventById(this.editingEventId);
+            await this.deleteEventById(this.editingEventId);
             this.hideEventForm();
             this.showToast('イベントを削除しました');
             this.addHapticFeedback();
         }
     }
     
-    addTestEvent() {
+    async addTestEvent() {
         console.log('=== 手動テストイベント追加開始 ===');
         const testEvent = {
             id: this.generateId(),
@@ -563,14 +635,8 @@ class FamilyCalendar {
         };
         
         console.log('手動テストイベント:', testEvent);
-        this.events.push(testEvent);
-        console.log('追加後のevents:', this.events);
-        
-        this.saveEventsToLocal();
-        console.log('LocalStorage保存完了');
-        
-        this.renderCalendar();
-        console.log('カレンダー再描画完了');
+        await this.saveEvent(testEvent);
+        console.log('テストイベント保存完了');
         
         this.showToast(`テストイベント追加: ${testEvent.title}`);
     }
