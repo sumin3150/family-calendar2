@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>家族カレンダー</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="mobile-header">
+            <div class="header-top">
+                <h1>📅 家族カレンダー</h1>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-indicator" id="statusIndicator">●</span>
+                    <span id="statusText">接続中...</span>
+                </div>
+            </div>
+            <div class="month-controls">
+                <button id="prevMonth" class="month-btn">‹</button>
+                <span id="currentMonth" class="current-month"></span>
+                <button id="nextMonth" class="month-btn">›</button>
+            </div>
+        </div>
+
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <div class="day-header">日</div>
+                <div class="day-header">月</div>
+                <div class="day-header">火</div>
+                <div class="day-header">水</div>
+                <div class="day-header">木</div>
+                <div class="day-header">金</div>
+                <div class="day-header">土</div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid">
+            </div>
+        </div>
+
+        <div class="fab-container">
+            <button class="fab" id="addEventFab">+</button>
+        </div>
+
+        <div class="event-form" id="eventForm">
+            <div class="form-header">
+                <h3 id="formTitle">イベント追加</h3>
+                <button type="button" class="close-btn" id="closeBtn">×</button>
+            </div>
+            <form id="eventFormData">
+                <input type="hidden" id="eventId">
+                <div class="form-group">
+                    <label for="eventTitle">📝 タイトル</label>
+                    <input type="text" id="eventTitle" placeholder="イベントタイトルを入力" required>
+                </div>
+                <div class="form-group">
+                    <label for="eventDate">📅 日付</label>
+                    <input type="date" id="eventDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="eventTime">🕐 時間</label>
+                    <input type="time" id="eventTime" placeholder="時間（任意）">
+                </div>
+                <div class="form-group">
+                    <label for="eventDescription">📄 説明</label>
+                    <textarea id="eventDescription" rows="3" placeholder="詳細な説明（任意）"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="eventMember">👨‍👩‍👧‍👦 担当者</label>
+                    <select id="eventMember">
+                        <option value="けんじ">👨 けんじ</option>
+                        <option value="あい">👩 あい</option>
+                        <option value="二人">💑 二人</option>
+                    </select>
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" id="saveEvent" class="save-btn">💾 保存</button>
+                    <button type="button" id="deleteEvent" class="delete-btn" style="display: none;">🗑️ 削除</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="overlay" id="overlay"></div>
+        
+        <div class="event-details" id="eventDetails">
+            <div class="detail-header">
+                <h3>イベント詳細</h3>
+                <button type="button" class="close-btn" id="closeDetailBtn">×</button>
+            </div>
+            <div class="detail-content" id="detailContent">
+            </div>
+            <div class="detail-buttons">
+                <button id="editEventBtn" class="edit-btn">✏️ 編集</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
