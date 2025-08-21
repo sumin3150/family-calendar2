@@ -26,6 +26,11 @@ class FamilyCalendar {
         this.updateCurrentMonthDisplay();
         this.updateConnectionStatus();
         
+        // 初期化直後にもステータス更新
+        setTimeout(() => {
+            this.updateConnectionStatus();
+        }, 100);
+        
         // オンライン/オフライン状態の監視
         window.addEventListener('online', () => {
             this.isOnline = true;
@@ -75,6 +80,12 @@ class FamilyCalendar {
             console.log('LocalStorage内容:', localStorage.getItem('familyCalendarEvents'));
             console.log('カレンダーグリッド要素:', this.calendarGrid);
             console.log('今日の日付:', this.formatDate(new Date()));
+            console.log('オンライン状態:', this.isOnline);
+            console.log('ステータステキスト要素:', this.statusText);
+            
+            // ステータス表示を強制更新
+            this.updateConnectionStatus();
+            console.log('ステータス強制更新完了');
         }, 1000);
     }
     
@@ -235,13 +246,19 @@ class FamilyCalendar {
     }
     
     updateConnectionStatus() {
+        console.log('ステータス更新実行 - オンライン:', this.isOnline);
+        
         if (this.isOnline) {
             this.statusIndicator.className = 'status-indicator connected';
             this.statusText.textContent = 'クラウド同期';
+            console.log('ステータス設定: クラウド同期');
         } else {
             this.statusIndicator.className = 'status-indicator disconnected';
             this.statusText.textContent = 'オフライン';
+            console.log('ステータス設定: オフライン');
         }
+        
+        console.log('現在のステータステキスト:', this.statusText?.textContent);
     }
     
     async loadEventsFromCloud() {
