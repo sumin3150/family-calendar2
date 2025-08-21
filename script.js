@@ -36,24 +36,33 @@ class FamilyCalendar {
     }
     
     initializeFirebase() {
-        // Firebase設定（実際のプロジェクトでは環境変数を使用）
+        // Firebase機能を無効化（LocalStorageのみで動作）
+        console.log('LocalStorageモードで動作します');
+        this.db = null;
+        this.fallbackToLocalStorage();
+        
+        // Firebase使用する場合は以下のコメントを解除して実際の設定を記入
+        /*
         const firebaseConfig = {
-            apiKey: "demo-key",
-            authDomain: "family-calendar-demo.firebaseapp.com",
-            databaseURL: "https://family-calendar-demo-default-rtdb.firebaseio.com",
-            projectId: "family-calendar-demo"
+            apiKey: "your-actual-api-key",
+            authDomain: "your-project.firebaseapp.com",
+            databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+            projectId: "your-project-id"
         };
         
         try {
-            if (!firebase.apps.length) {
+            if (typeof firebase !== 'undefined' && !firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
+                this.db = firebase.database();
+                this.setupFirebaseListeners();
+                console.log('Firebase初期化成功');
             }
-            this.db = firebase.database();
-            this.setupFirebaseListeners();
         } catch (error) {
             console.warn('Firebase初期化に失敗しました。LocalStorageモードで動作します:', error);
+            this.db = null;
             this.fallbackToLocalStorage();
         }
+        */
     }
     
     fallbackToLocalStorage() {
@@ -186,7 +195,7 @@ class FamilyCalendar {
             this.statusText.textContent = '同期中';
         } else if (this.isOnline) {
             this.statusIndicator.className = 'status-indicator connected';
-            this.statusText.textContent = 'ローカル';
+            this.statusText.textContent = 'ローカル保存';
         } else {
             this.statusIndicator.className = 'status-indicator disconnected';
             this.statusText.textContent = 'オフライン';
