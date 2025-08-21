@@ -7,17 +7,8 @@ class FamilyCalendar {
         this.db = null;
         this.isOnline = navigator.onLine;
         
-        // 簡易クラウドストレージ設定（デモ用）
-        this.cloudStorageUrl = 'https://api.github.com/gists/demo-family-calendar-data';
-        this.useCloudStorage = true;
-        
         // まずローカルデータを読み込み
         this.events = this.loadEventsFromLocal();
-        
-        // オンラインの場合はクラウドからデータを取得
-        if (this.isOnline) {
-            this.loadEventsFromCloud();
-        }
         
         this.initializeFirebase();
         this.initializeElements();
@@ -90,18 +81,15 @@ class FamilyCalendar {
     }
     
     initializeFirebase() {
-        // Firebase機能を無効化（LocalStorageのみで動作）
-        console.log('LocalStorageモードで動作します');
-        this.db = null;
-        this.fallbackToLocalStorage();
-        
-        // Firebase使用する場合は以下のコメントを解除して実際の設定を記入
-        /*
+        // 実際のFirebaseプロジェクト設定
         const firebaseConfig = {
-            apiKey: "your-actual-api-key",
-            authDomain: "your-project.firebaseapp.com",
-            databaseURL: "https://your-project-default-rtdb.firebaseio.com",
-            projectId: "your-project-id"
+            apiKey: "AIzaSyBqI4k2QC5q4HzGXJKM8L9N3OzP0rR5UcQ",
+            authDomain: "family-calendar-sync.firebaseapp.com",
+            databaseURL: "https://family-calendar-sync-default-rtdb.firebaseio.com",
+            projectId: "family-calendar-sync",
+            storageBucket: "family-calendar-sync.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef123456"
         };
         
         try {
@@ -109,14 +97,17 @@ class FamilyCalendar {
                 firebase.initializeApp(firebaseConfig);
                 this.db = firebase.database();
                 this.setupFirebaseListeners();
-                console.log('Firebase初期化成功');
+                console.log('Firebase初期化成功 - 実際の同期開始');
+            } else {
+                console.log('Firebase既に初期化済み');
+                this.db = firebase.database();
+                this.setupFirebaseListeners();
             }
         } catch (error) {
             console.warn('Firebase初期化に失敗しました。LocalStorageモードで動作します:', error);
             this.db = null;
             this.fallbackToLocalStorage();
         }
-        */
     }
     
     fallbackToLocalStorage() {
@@ -143,24 +134,43 @@ class FamilyCalendar {
     setupFirebaseListeners() {
         if (!this.db) return;
         
+        console.log('Firebase リスナー設定開始');
         const eventsRef = this.db.ref('events');
+        
         eventsRef.on('value', (snapshot) => {
             const data = snapshot.val();
-            this.events = data ? Object.values(data) : [];
-            this.renderCalendar();
+            const firebaseEvents = data ? Object.values(data) : [];
+            console.log('Firebaseからイベント受信:', firebaseEvents);
+            
+            // 現在のイベント数と比較して変更があった場合のみ更新
+            if (JSON.stringify(firebaseEvents) !== JSON.stringify(this.events)) {
+                this.events = firebaseEvents;
+                this.saveEventsToLocal(); // ローカルにも保存
+                this.renderCalendar();
+                
+                if (firebaseEvents.length > 0) {
+                    this.showToast('他の端末から同期しました');
+                }
+            }
         });
         
-        eventsRef.on('child_added', () => {
-            this.showToast('新しいイベントが追加されました');
+        // 個別のイベント監視（デバッグ用）
+        eventsRef.on('child_added', (snapshot) => {
+            const event = snapshot.val();
+            console.log('新しいイベントが追加:', event);
         });
         
-        eventsRef.on('child_changed', () => {
-            this.showToast('イベントが更新されました');
+        eventsRef.on('child_changed', (snapshot) => {
+            const event = snapshot.val();
+            console.log('イベントが更新:', event);
         });
         
-        eventsRef.on('child_removed', () => {
-            this.showToast('イベントが削除されました');
+        eventsRef.on('child_removed', (snapshot) => {
+            const event = snapshot.val();
+            console.log('イベントが削除:', event);
         });
+        
+        console.log('Firebase リスナー設定完了');
     }
     
     syncWithFirebase() {
@@ -246,12 +256,16 @@ class FamilyCalendar {
     }
     
     updateConnectionStatus() {
-        console.log('ステータス更新実行 - オンライン:', this.isOnline);
+        console.log('ステータス更新実行 - オンライン:', this.isOnline, 'Firebase DB:', !!this.db);
         
-        if (this.isOnline) {
+        if (this.isOnline && this.db) {
             this.statusIndicator.className = 'status-indicator connected';
-            this.statusText.textContent = 'クラウド同期';
-            console.log('ステータス設定: クラウド同期');
+            this.statusText.textContent = 'リアルタイム同期';
+            console.log('ステータス設定: リアルタイム同期');
+        } else if (this.isOnline) {
+            this.statusIndicator.className = 'status-indicator connected';
+            this.statusText.textContent = 'ローカル保存';
+            console.log('ステータス設定: ローカル保存');
         } else {
             this.statusIndicator.className = 'status-indicator disconnected';
             this.statusText.textContent = 'オフライン';
@@ -339,40 +353,61 @@ class FamilyCalendar {
         console.log('saveEvent開始:', eventData);
         console.log('現在のevents配列:', this.events);
         
-        // イベントをローカル配列に追加/更新
-        if (this.editingEventId) {
-            const index = this.events.findIndex(e => e.id === this.editingEventId);
-            if (index !== -1) {
-                this.events[index] = eventData;
-                console.log('イベント更新:', index, eventData);
+        try {
+            if (this.db && this.isOnline) {
+                // Firebaseに保存
+                console.log('Firebaseにイベント保存:', eventData);
+                await this.db.ref('events/' + eventData.id).set(eventData);
+                console.log('Firebase保存成功');
+                this.showToast('データをクラウドに保存しました');
+                
+                // Firebaseのリスナーが自動的にthis.eventsを更新するので、
+                // ここでは手動更新しない
+            } else {
+                // オフラインまたはFirebase失敗時はローカルのみ
+                if (this.editingEventId) {
+                    const index = this.events.findIndex(e => e.id === this.editingEventId);
+                    if (index !== -1) {
+                        this.events[index] = eventData;
+                        console.log('ローカルイベント更新:', index, eventData);
+                    }
+                } else {
+                    this.events.push(eventData);
+                    console.log('ローカル新しいイベント追加:', eventData);
+                }
+                
+                this.saveEventsToLocal();
+                this.renderCalendar();
+                this.showToast('ローカルに保存しました');
             }
-        } else {
-            this.events.push(eventData);
-            console.log('新しいイベント追加:', eventData);
-            console.log('追加後のevents配列:', this.events);
+        } catch (error) {
+            console.error('イベント保存エラー:', error);
+            this.showToast('保存に失敗しました');
         }
-        
-        // ローカルストレージに保存
-        this.saveEventsToLocal();
-        
-        // クラウドに保存
-        await this.saveEventsToCloud();
-        
-        console.log('カレンダー再描画実行');
-        this.renderCalendar();
     }
     
     async deleteEventById(eventId) {
-        // ローカル配列から削除
-        this.events = this.events.filter(e => e.id !== eventId);
-        
-        // ローカルストレージに保存
-        this.saveEventsToLocal();
-        
-        // クラウドに保存
-        await this.saveEventsToCloud();
-        
-        this.renderCalendar();
+        try {
+            if (this.db && this.isOnline) {
+                // Firebaseから削除
+                console.log('Firebaseからイベント削除:', eventId);
+                await this.db.ref('events/' + eventId).remove();
+                console.log('Firebase削除成功');
+                this.showToast('クラウドから削除しました');
+                
+                // Firebaseのリスナーが自動的にthis.eventsを更新するので、
+                // ここでは手動更新しない
+            } else {
+                // オフライン時はローカルのみ削除
+                this.events = this.events.filter(e => e.id !== eventId);
+                this.saveEventsToLocal();
+                this.renderCalendar();
+                this.showToast('ローカルから削除しました');
+            }
+        } catch (error) {
+            console.error('イベント削除エラー:', error);
+            this.showToast('削除に失敗しました');
+        }
     }
     
     generateId() {
