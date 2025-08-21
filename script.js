@@ -7,6 +7,9 @@ class FamilyCalendar {
         this.db = null;
         this.isOnline = navigator.onLine;
         
+        // まずローカルデータを読み込み
+        this.events = this.loadEventsFromLocal();
+        
         this.initializeFirebase();
         this.initializeElements();
         this.bindEvents();
@@ -24,6 +27,11 @@ class FamilyCalendar {
         window.addEventListener('offline', () => {
             this.isOnline = false;
             this.updateConnectionStatus();
+        });
+        
+        // ページの再読み込み時にもデータを維持
+        window.addEventListener('beforeunload', () => {
+            this.saveEventsToLocal();
         });
     }
     
@@ -49,7 +57,8 @@ class FamilyCalendar {
     }
     
     fallbackToLocalStorage() {
-        this.events = this.loadEventsFromLocal();
+        // 初期化時に既にloadEventsFromLocalが呼ばれているので、ここでは監視のみ設定
+        
         // LocalStorageの変更を監視
         window.addEventListener('storage', (e) => {
             if (e.key === 'familyCalendarEvents') {
@@ -58,7 +67,7 @@ class FamilyCalendar {
             }
         });
         
-        // 定期的にLocalStorageをチェック
+        // 定期的にLocalStorageをチェック（同一タブ内の変更検知）
         setInterval(() => {
             const newEvents = this.loadEventsFromLocal();
             if (JSON.stringify(newEvents) !== JSON.stringify(this.events)) {
@@ -186,10 +195,13 @@ class FamilyCalendar {
     
     loadEventsFromLocal() {
         const stored = localStorage.getItem('familyCalendarEvents');
-        return stored ? JSON.parse(stored) : [];
+        const events = stored ? JSON.parse(stored) : [];
+        console.log('LocalStorageから読み込まれたイベント:', events);
+        return events;
     }
     
     saveEventsToLocal() {
+        console.log('LocalStorageに保存するイベント:', this.events);
         localStorage.setItem('familyCalendarEvents', JSON.stringify(this.events));
     }
     
@@ -206,19 +218,20 @@ class FamilyCalendar {
             } else {
                 this.events.push(eventData);
             }
-            this.saveEventsToLocal();
-            this.renderCalendar();
         }
+        // 常にローカルにも保存（Firebase使用時も）
+        this.saveEventsToLocal();
+        this.renderCalendar();
     }
     
     deleteEventById(eventId) {
         if (this.db && this.isOnline) {
             this.db.ref('events/' + eventId).remove();
-        } else {
-            this.events = this.events.filter(e => e.id !== eventId);
-            this.saveEventsToLocal();
-            this.renderCalendar();
         }
+        // 常にローカルからも削除
+        this.events = this.events.filter(e => e.id !== eventId);
+        this.saveEventsToLocal();
+        this.renderCalendar();
     }
     
     generateId() {
